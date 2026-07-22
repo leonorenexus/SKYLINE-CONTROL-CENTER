@@ -1,0 +1,86 @@
+name: Build SKYLINE APK
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Debug & Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant Gradle execute permission
+        run: chmod +x gradlew
+
+      - name: Create font placeholder files
+        run: |
+          mkdir -p app/src/main/res/font
+          # Placeholder font files (replace with actual Orbitron + Rajdhani TTF)
+          for f in orbitron_regular orbitron_medium orbitron_semibold orbitron_bold orbitron_extrabold orbitron_black rajdhani_regular rajdhani_medium rajdhani_semibold rajdhani_bold; do
+            touch "app/src/main/res/font/${f}.ttf"
+          done
+
+      - name: Create drawable placeholder
+        run: |
+          mkdir -p app/src/main/res/drawable
+          cat > app/src/main/res/drawable/ic_launcher_foreground.xml << 'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp" android:height="108dp"
+              android:viewportWidth="108" android:viewportHeight="108">
+            <path android:fillColor="#FF4DB8"
+                android:pathData="M54,27L54,81M54,81L36,81M54,54L69,54"/>
+          </vector>
+          EOF
+          cp app/src/main/res/drawable/ic_launcher_foreground.xml \
+             app/src/main/res/drawable/ic_launcher_background.xml
+
+      - name: Create mipmap launcher icons
+        run: |
+          mkdir -p app/src/main/res/mipmap-xxxhdpi
+          # Copy placeholder as launcher icon (replace with real WEBP in production)
+          cp app/src/main/res/drawable/ic_launcher_foreground.xml \
+             app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp || true
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Build Release APK (unsigned)
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SkylineControlCenter-Debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SkylineControlCenter-Release
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          retention-days: 30
