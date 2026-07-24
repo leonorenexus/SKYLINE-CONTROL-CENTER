@@ -21,7 +21,13 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
+
+      - name: Download gradle-wrapper.jar
+        run: |
+          curl -fsSL \
+            "https://github.com/gradle/gradle/raw/v8.10.2/gradle/wrapper/gradle-wrapper.jar" \
+            -o gradle/wrapper/gradle-wrapper.jar
+          echo "JAR size: $(wc -c < gradle/wrapper/gradle-wrapper.jar) bytes"
 
       - name: Grant Gradle execute permission
         run: chmod +x gradlew
@@ -29,31 +35,67 @@ jobs:
       - name: Create font placeholder files
         run: |
           mkdir -p app/src/main/res/font
-          # Placeholder font files (replace with actual Orbitron + Rajdhani TTF)
-          for f in orbitron_regular orbitron_medium orbitron_semibold orbitron_bold orbitron_extrabold orbitron_black rajdhani_regular rajdhani_medium rajdhani_semibold rajdhani_bold; do
-            touch "app/src/main/res/font/${f}.ttf"
+          SYSFONT=$(find /usr/share/fonts -name "*.ttf" | head -1)
+          for f in orbitron_regular orbitron_medium orbitron_semibold orbitron_bold \
+                   orbitron_extrabold orbitron_black \
+                   rajdhani_regular rajdhani_medium rajdhani_semibold rajdhani_bold; do
+            cp "$SYSFONT" "app/src/main/res/font/${f}.ttf"
           done
+          echo "Fonts: $(ls app/src/main/res/font/ | wc -l) files"
 
-      - name: Create drawable placeholder
+      - name: Create drawable & launcher resources
         run: |
           mkdir -p app/src/main/res/drawable
-          cat > app/src/main/res/drawable/ic_launcher_foreground.xml << 'EOF'
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="108dp" android:height="108dp"
-              android:viewportWidth="108" android:viewportHeight="108">
-            <path android:fillColor="#FF4DB8"
-                android:pathData="M54,27L54,81M54,81L36,81M54,54L69,54"/>
-          </vector>
-          EOF
-          cp app/src/main/res/drawable/ic_launcher_foreground.xml \
-             app/src/main/res/drawable/ic_launcher_background.xml
+          mkdir -p app/src/main/res/mipmap-anydpi-v26
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            mkdir -p app/src/main/res/mipmap-${d}
+          done
 
-      - name: Create mipmap launcher icons
-        run: |
-          mkdir -p app/src/main/res/mipmap-xxxhdpi
-          # Copy placeholder as launcher icon (replace with real WEBP in production)
-          cp app/src/main/res/drawable/ic_launcher_foreground.xml \
-             app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp || true
+          cat > app/src/main/res/drawable/ic_launcher_foreground.xml << 'VECEOF'
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+  <path android:fillColor="#FF4DB8"
+      android:pathData="M36,22L36,86M36,86L58,86M36,54L54,54"/>
+</vector>
+VECEOF
+
+          cat > app/src/main/res/drawable/ic_launcher_background.xml << 'BGEOF'
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#0F0A17"/>
+</shape>
+BGEOF
+
+          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'AEOF'
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background"/>
+    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+</adaptive-icon>
+AEOF
+          cp app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml \
+             app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+
+          # Generate PNG icons via ImageMagick
+          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            case $density in
+              mdpi)    size=48  ;;
+              hdpi)    size=72  ;;
+              xhdpi)   size=96  ;;
+              xxhdpi)  size=144 ;;
+              xxxhdpi) size=192 ;;
+            esac
+            convert -size ${size}x${size} xc:'#0F0A17' \
+              -fill '#FF4DB8' \
+              -draw "line $((size/3)),$((size/5)) $((size/3)),$((size*4/5))" \
+              -draw "line $((size/3)),$((size*4/5)) $((size*3/5)),$((size*4/5))" \
+              app/src/main/res/mipmap-${density}/ic_launcher.png
+            cp app/src/main/res/mipmap-${density}/ic_launcher.png \
+               app/src/main/res/mipmap-${density}/ic_launcher_round.png
+          done
+          echo "Resources OK"
 
       - name: Cache Gradle packages
         uses: actions/cache@v4
