@@ -43,42 +43,42 @@ jobs:
           done
           echo "Fonts: $(ls app/src/main/res/font/ | wc -l) files"
 
-      - name: Create drawable & launcher resources
+      - name: Create drawable and launcher resources
         run: |
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/res/mipmap-anydpi-v26
           for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-            mkdir -p app/src/main/res/mipmap-${d}
+            mkdir -p "app/src/main/res/mipmap-${d}"
           done
 
-          cat > app/src/main/res/drawable/ic_launcher_foreground.xml << 'VECEOF'
-<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp" android:height="108dp"
-    android:viewportWidth="108" android:viewportHeight="108">
-  <path android:fillColor="#FF4DB8"
-      android:pathData="M36,22L36,86M36,86L58,86M36,54L54,54"/>
-</vector>
-VECEOF
+          printf '%s\n' \
+            '<?xml version="1.0" encoding="utf-8"?>' \
+            '<vector xmlns:android="http://schemas.android.com/apk/res/android"' \
+            '    android:width="108dp" android:height="108dp"' \
+            '    android:viewportWidth="108" android:viewportHeight="108">' \
+            '  <path android:fillColor="#FF4DB8"' \
+            '      android:pathData="M36,22L36,86M36,86L58,86M36,54L54,54"/>' \
+            '</vector>' \
+            > app/src/main/res/drawable/ic_launcher_foreground.xml
 
-          cat > app/src/main/res/drawable/ic_launcher_background.xml << 'BGEOF'
-<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#0F0A17"/>
-</shape>
-BGEOF
+          printf '%s\n' \
+            '<?xml version="1.0" encoding="utf-8"?>' \
+            '<shape xmlns:android="http://schemas.android.com/apk/res/android">' \
+            '    <solid android:color="#0F0A17"/>' \
+            '</shape>' \
+            > app/src/main/res/drawable/ic_launcher_background.xml
 
-          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'AEOF'
-<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@drawable/ic_launcher_background"/>
-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-</adaptive-icon>
-AEOF
+          printf '%s\n' \
+            '<?xml version="1.0" encoding="utf-8"?>' \
+            '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">' \
+            '    <background android:drawable="@drawable/ic_launcher_background"/>' \
+            '    <foreground android:drawable="@drawable/ic_launcher_foreground"/>' \
+            '</adaptive-icon>' \
+            > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+
           cp app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml \
              app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
 
-          # Generate PNG icons via ImageMagick
           for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
             case $density in
               mdpi)    size=48  ;;
@@ -91,9 +91,9 @@ AEOF
               -fill '#FF4DB8' \
               -draw "line $((size/3)),$((size/5)) $((size/3)),$((size*4/5))" \
               -draw "line $((size/3)),$((size*4/5)) $((size*3/5)),$((size*4/5))" \
-              app/src/main/res/mipmap-${density}/ic_launcher.png
-            cp app/src/main/res/mipmap-${density}/ic_launcher.png \
-               app/src/main/res/mipmap-${density}/ic_launcher_round.png
+              "app/src/main/res/mipmap-${density}/ic_launcher.png"
+            cp "app/src/main/res/mipmap-${density}/ic_launcher.png" \
+               "app/src/main/res/mipmap-${density}/ic_launcher_round.png"
           done
           echo "Resources OK"
 
