@@ -79,22 +79,42 @@ jobs:
           cp app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml \
              app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
 
-          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-            case $density in
-              mdpi)    size=48  ;;
-              hdpi)    size=72  ;;
-              xhdpi)   size=96  ;;
-              xxhdpi)  size=144 ;;
-              xxxhdpi) size=192 ;;
-            esac
-            convert -size ${size}x${size} xc:'#0F0A17' \
-              -fill '#FF4DB8' \
-              -draw "line $((size/3)),$((size/5)) $((size/3)),$((size*4/5))" \
-              -draw "line $((size/3)),$((size*4/5)) $((size*3/5)),$((size*4/5))" \
-              "app/src/main/res/mipmap-${density}/ic_launcher.png"
-            cp "app/src/main/res/mipmap-${density}/ic_launcher.png" \
-               "app/src/main/res/mipmap-${density}/ic_launcher_round.png"
-          done
+          python3 - << 'PYEOF'
+          import struct, zlib, os
+
+          def make_png(size, bg=(15,10,23), fg=(255,77,184)):
+              def chunk(tag, data):
+                  c = zlib.crc32(tag + data) & 0xffffffff
+                  return struct.pack('>I', len(data)) + tag + data + struct.pack('>I', c)
+              ihdr = struct.pack('>IIBBBBB', size, size, 8, 2, 0, 0, 0)
+              rows = []
+              for y in range(size):
+                  row = b'\x00'
+                  for x in range(size):
+                      lx = size // 3
+                      by = size * 4 // 5
+                      if x == lx and size // 5 <= y <= by:
+                          row += bytes(fg)
+                      elif y == by and lx <= x <= size * 3 // 5:
+                          row += bytes(fg)
+                      else:
+                          row += bytes(bg)
+                  rows.append(row)
+              raw = b''.join(rows)
+              idat = zlib.compress(raw)
+              return (b'\x89PNG\r\n\x1a\n'
+                      + chunk(b'IHDR', ihdr)
+                      + chunk(b'IDAT', idat)
+                      + chunk(b'IEND', b''))
+
+          sizes = {'mdpi':48,'hdpi':72,'xhdpi':96,'xxhdpi':144,'xxxhdpi':192}
+          for density, sz in sizes.items():
+              png = make_png(sz)
+              base = f'app/src/main/res/mipmap-{density}'
+              open(f'{base}/ic_launcher.png','wb').write(png)
+              open(f'{base}/ic_launcher_round.png','wb').write(png)
+              print(f'{density}: {sz}x{sz} OK')
+          PYEOF
           echo "Resources OK"
 
       - name: Cache Gradle packages
